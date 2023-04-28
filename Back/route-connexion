@@ -1,0 +1,29 @@
+const { Router } = require("express")
+const { schemaLogin } = require("./verif")
+const { User } = require("./model")
+const { compare } = require("bcrypt")
+const JWT = require("jsonwebtoken")
+const {isValidLogin} = require("./middleware")
+
+const route = Router();
+
+route.post("/login" ,isValidLogin, async (request , reponse) => {
+const { body } = request
+const utilisateurRecherche = await User.findOne({email : body.email}) 
+ 
+    if(!utilisateurRecherche) return  reponse.status(404).json({msg : "aucun profil trouvé avec ces identifiants" });
+    const verif = await compare(body.password , utilisateurRecherche.password )
+    if(!verif) return reponse.status(404).json({msg : "aucun profil trouvé avec ces identifiants" });
+    const profilSansMotPass = {
+        _id : utilisateurRecherche._id ,
+        email : utilisateurRecherche.email , 
+        role : utilisateurRecherche.role ? utilisateurRecherche.role : "visiteur"
+    }
+    const token = JWT.sign(profilSansMotPass , process.env.CLE_PRIVEE_JWT);
+    reponse.json( {msg : "bienvenue " , token : token} ) // authentification => qui  ?
+                                                        // autorisation => qu'est ce que l'on peut faire ?
+    // jsonwebtoken => https://jwt.io/
+    // transmis au client (React native) => stocker dans une table SQLITE 
+})
+
+module.exports = route 
